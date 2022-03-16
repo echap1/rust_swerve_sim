@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use uom::ConstZero;
 use uom::si::angle::radian;
 use uom::si::f32::{Angle, Length};
-use crate::field::{FieldPose, FieldRectangle};
+use crate::field::{FieldPose, FieldRectangle, FieldVec};
 
 use uom::si::length::{inch, meter};
 
@@ -33,9 +34,9 @@ fn setup(mut commands: Commands) {
         DrawMode::Fill(FillMode::color(Color::GRAY)),
         Transform::default(),
     )).insert(FieldPose {
-        x: Length::new::<meter>(10.0),
-        y: Length::new::<meter>(5.0),
-        rotation: Angle::default()
+        pos: FieldVec::new(Length::new::<meter>(10.0), Length::new::<meter>(5.0)),
+        rotation: Angle::ZERO,
+        z: 1.0
     }).insert(FieldRectangle {
         width: Length::new::<inch>(29.0),
         height: Length::new::<inch>(29.0),
@@ -49,10 +50,10 @@ fn update(mut query: Query<(&Robot, &mut FieldPose)>, time: Res<Time>, keyboard_
     let (_, mut pose): (&Robot, Mut<FieldPose>) = query.single_mut();
     let v = 5.0 * Length::new::<meter>(time.delta_seconds());
     let vr = 3.0 * Angle::new::<radian>(time.delta_seconds());
-    if keyboard_input.pressed(KeyCode::A) { pose.x -= v; }
-    if keyboard_input.pressed(KeyCode::D) { pose.x += v; }
-    if keyboard_input.pressed(KeyCode::S) { pose.y -= v; }
-    if keyboard_input.pressed(KeyCode::W) { pose.y += v; }
+    if keyboard_input.pressed(KeyCode::A) { pose.pos.x -= v; }
+    if keyboard_input.pressed(KeyCode::D) { pose.pos.x += v; }
+    if keyboard_input.pressed(KeyCode::S) { pose.pos.y -= v; }
+    if keyboard_input.pressed(KeyCode::W) { pose.pos.y += v; }
     if keyboard_input.pressed(KeyCode::Q) { pose.rotation += vr; }
     if keyboard_input.pressed(KeyCode::E) { pose.rotation -= vr; }
 }
