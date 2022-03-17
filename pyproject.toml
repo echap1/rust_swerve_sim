@@ -6,6 +6,8 @@ authors = ["ethan <ethan.chapman0@outlook.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+robotpy-toolkit-7407 = "0.3.3"
+numpy = "^1.22.3"
 
 [tool.poetry.dev-dependencies]
 

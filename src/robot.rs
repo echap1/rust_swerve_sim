@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-use uom::ConstZero;
 use uom::si::angle::radian;
 use uom::si::f32::{Angle, Length};
-use crate::field::{FieldPose, FieldRectangle, FieldVec};
+use uom::ConstZero;
 
+use crate::field::render::FieldZ;
+use crate::field::shapes::FieldRectangle;
+use crate::field::{FieldPose, FieldVec};
 use uom::si::length::{inch, meter};
 
 pub struct RobotPlugin;
@@ -18,32 +20,36 @@ impl Plugin for RobotPlugin {
 
 #[derive(Component)]
 pub struct Robot {
-    state: RobotState
+    state: RobotState,
 }
 
 pub enum RobotState {
     DISABLED,
     TELEOP,
-    AUTONOMOUS(u32)  // Routine number?
+    AUTONOMOUS(u32), // Routine number?
 }
 
 fn setup(mut commands: Commands) {
     let robot_shape = shapes::Rectangle::default();
-    commands.spawn_bundle(GeometryBuilder::build_as(
-        &robot_shape,
-        DrawMode::Fill(FillMode::color(Color::GRAY)),
-        Transform::default(),
-    )).insert(FieldPose {
-        pos: FieldVec::new(Length::new::<meter>(10.0), Length::new::<meter>(5.0)),
-        rotation: Angle::ZERO,
-        z: 1.0
-    }).insert(FieldRectangle {
-        width: Length::new::<inch>(29.0),
-        height: Length::new::<inch>(29.0),
-        origin: RectangleOrigin::Center
-    }).insert(Robot {
-        state: RobotState::DISABLED
-    });
+    commands
+        .spawn_bundle(GeometryBuilder::build_as(
+            &robot_shape,
+            DrawMode::Fill(FillMode::color(Color::GRAY)),
+            Transform::default(),
+        ))
+        .insert(FieldPose {
+            pos: FieldVec::new(Length::new::<meter>(10.0), Length::new::<meter>(5.0)),
+            rotation: Angle::ZERO,
+        })
+        .insert(FieldRectangle {
+            width: Length::new::<inch>(29.0),
+            height: Length::new::<inch>(29.0),
+            origin: RectangleOrigin::Center,
+        })
+        .insert(Robot {
+            state: RobotState::DISABLED,
+        })
+        .insert(FieldZ::ROBOT);
 }
 
 fn update(mut query: Query<(&Robot, &mut FieldPose)>, time: Res<Time>, keyboard_input: Res<Input<KeyCode>>) {
