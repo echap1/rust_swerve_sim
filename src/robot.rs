@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use uom::si::angle::radian;
@@ -6,27 +7,28 @@ use uom::ConstZero;
 
 use crate::field::render::FieldZ;
 use crate::field::shapes::FieldRectangle;
-use crate::field::{FieldPose, FieldVec};
+use crate::field::{FieldPose, FieldPosition};
 use uom::si::length::{inch, meter};
 
 pub struct RobotPlugin;
+
+#[derive(Component)]
+pub struct Robot {
+    pub state: RobotState,
+}
+
+#[derive(Copy, Clone)]
+pub enum RobotState {
+    DISABLED,
+    TELEOP,
+    AUTONOMOUS(u32), // Routine number?
+}
 
 impl Plugin for RobotPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(setup);
         app.add_system(update);
     }
-}
-
-#[derive(Component)]
-pub struct Robot {
-    state: RobotState,
-}
-
-pub enum RobotState {
-    DISABLED,
-    TELEOP,
-    AUTONOMOUS(u32), // Routine number?
 }
 
 fn setup(mut commands: Commands) {
@@ -38,7 +40,7 @@ fn setup(mut commands: Commands) {
             Transform::default(),
         ))
         .insert(FieldPose {
-            pos: FieldVec::new(Length::new::<meter>(10.0), Length::new::<meter>(5.0)),
+            translation: FieldPosition::new(Length::new::<meter>(10.0), Length::new::<meter>(5.0)),
             rotation: Angle::ZERO,
         })
         .insert(FieldRectangle {
@@ -56,10 +58,10 @@ fn update(mut query: Query<(&Robot, &mut FieldPose)>, time: Res<Time>, keyboard_
     let (_, mut pose): (&Robot, Mut<FieldPose>) = query.single_mut();
     let v = 5.0 * Length::new::<meter>(time.delta_seconds());
     let vr = 3.0 * Angle::new::<radian>(time.delta_seconds());
-    if keyboard_input.pressed(KeyCode::A) { pose.pos.x -= v; }
-    if keyboard_input.pressed(KeyCode::D) { pose.pos.x += v; }
-    if keyboard_input.pressed(KeyCode::S) { pose.pos.y -= v; }
-    if keyboard_input.pressed(KeyCode::W) { pose.pos.y += v; }
+    if keyboard_input.pressed(KeyCode::A) { pose.translation.x -= v; }
+    if keyboard_input.pressed(KeyCode::D) { pose.translation.x += v; }
+    if keyboard_input.pressed(KeyCode::S) { pose.translation.y -= v; }
+    if keyboard_input.pressed(KeyCode::W) { pose.translation.y += v; }
     if keyboard_input.pressed(KeyCode::Q) { pose.rotation += vr; }
     if keyboard_input.pressed(KeyCode::E) { pose.rotation -= vr; }
 }

@@ -17,7 +17,8 @@ pub struct LayoutSettings {
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Layout {
     pub field: LayoutRect,
-    // pub console: LayoutRect,
+    pub auto_cfg: LayoutRect,
+    pub console: LayoutRect,
     pub screen_size: Vec2,
 }
 
@@ -49,23 +50,34 @@ impl Layout {
         let bottom = -height / 2.0;
         let total_usable_w = width - 2.0 * settings.margin;
         let total_usable_h = height - 2.0 * settings.margin;
-        let field_w = total_usable_w.min(total_usable_h * Field::WH_RATIO);
+        let field_w = total_usable_w.min(
+            (total_usable_h * 0.7) * Field::WH_RATIO
+        ).min(
+            0.7 * total_usable_w
+        );
         let field_h = field_w / Field::WH_RATIO;
         Layout {
             field: LayoutRect::new(
                 left + settings.margin,
-                bottom + settings.margin,
+                bottom + settings.margin + (total_usable_h - field_h),
                 field_w,
                 field_h,
                 settings.border_size,
             ),
-            // console: LayoutRect::new(
-            //     left + settings.margin + field_w + settings.margin,
-            //     bottom + settings.margin,
-            //     console_w,
-            //     0.5 * total_usable_h,
-            //     settings.border_size
-            // ),
+            auto_cfg: LayoutRect::new(
+                left + settings.margin + field_w + settings.margin,
+                bottom + settings.margin + (total_usable_h - field_h),
+                total_usable_w - field_w - settings.margin,
+                field_h,
+                settings.border_size
+            ),
+            console: LayoutRect::new(
+                left + settings.margin,
+                bottom + settings.margin,
+                total_usable_w,
+                total_usable_h - field_h - settings.margin,
+                settings.border_size
+            ),
             screen_size: Vec2::new(width, height),
         }
     }

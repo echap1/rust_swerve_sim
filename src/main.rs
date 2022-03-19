@@ -1,11 +1,13 @@
 mod field;
 mod layout;
 mod robot;
+mod auto_pathing;
 
 extern crate uom;
 
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
+use crate::auto_pathing::AutoPathingPlugin;
 
 use crate::field::FieldManagementPlugin;
 use crate::layout::{LayoutPlugin, Layout};
@@ -24,6 +26,7 @@ fn main() {
         .add_plugin(LayoutPlugin)
         .add_plugin(FieldManagementPlugin)
         .add_plugin(RobotPlugin)
+        .add_plugin(AutoPathingPlugin)
         .add_startup_system(setup)
 
         .run();

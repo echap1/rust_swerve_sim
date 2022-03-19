@@ -6,15 +6,17 @@ use uom::si::angle::radian;
 use uom::si::length::meter;
 
 use crate::field::shapes::{FieldCircle, FieldPath, FieldRectangle};
-use crate::field::{Field, FieldPose, FieldVec};
+use crate::field::{Field, FieldPose, FieldPosition};
 use crate::layout::event::LayoutChangedEvent;
 
 #[derive(Component)]
-pub struct FieldZ(f32);
+pub struct FieldZ(pub f32);
 
 impl FieldZ {
     pub const FIELD_OBJECTS: FieldZ = FieldZ(0.0);
-    pub const ROBOT: FieldZ = FieldZ(1.0);
+    pub const AUTO_PATH: FieldZ = FieldZ(1.0);
+    pub const AUTO_WAYPOINTS: FieldZ = FieldZ(2.0);
+    pub const ROBOT: FieldZ = FieldZ(3.0);
 }
 
 // Updates the position and rotation of field-relative sprites to reflect their pose
@@ -112,7 +114,7 @@ fn build_field_path(path: &FieldPath, field: &Field, layout: &Layout) -> Path {
     let start_screen_vec = field.to_screen_vec(layout, &path.origin);
 
     for p in &path.points {
-        let pose = FieldVec::new(p.x + cum_x, p.y + cum_y);
+        let pose = FieldPosition::new(p.x + cum_x, p.y + cum_y);
         cum_x += p.x;
         cum_y += p.y;
         builder.line_to(field.to_screen_vec(layout, &pose) - start_screen_vec);

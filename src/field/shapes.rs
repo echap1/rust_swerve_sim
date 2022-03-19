@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
-use crate::field::FieldVec;
+use crate::field::FieldPosition;
 use uom::si::f32::{Angle, Length};
 
 #[derive(Component)]
@@ -14,9 +14,9 @@ pub struct FieldRectangle {
     pub origin: RectangleOrigin,
 }
 
-#[derive(Component)]
+#[derive(Default, Component)]
 pub struct FieldPath {
-    pub origin: FieldVec,
-    pub points: Vec<FieldVec>,
+    pub origin: FieldPosition,
+    pub points: Vec<FieldPosition>,
     pub rotation: Angle,
 }

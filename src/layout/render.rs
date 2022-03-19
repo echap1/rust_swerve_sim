@@ -6,7 +6,7 @@ use crate::Layout;
 use crate::layout::{LayoutChangedEvent, LayoutRect};
 use crate::layout::border::BorderElement;
 
-static FONT_SIZE: f32 = 30.0;
+pub static FONT_SIZE: f32 = 30.0;
 
 
 #[inline]
