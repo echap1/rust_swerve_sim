@@ -3,6 +3,7 @@ use bevy::input::mouse::{MouseButtonInput, MouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use uom::ConstZero;
+use uom::si::angle::radian;
 use uom::si::f32::*;
 use uom::si::length::meter;
 use crate::auto_pathing::trajectory::{generate_trajectory, Trajectory};
@@ -13,6 +14,8 @@ use crate::field::shapes::FieldPath;
 use crate::Layout;
 
 const WAYPOINT_RADIUS: f32 = 15.0;
+const ROTATION_ANCHOR_POINT_RADIUS: f32 = 10.0;
+const ROTATION_ANCHOR_REVOLUTION_RADIUS: f32 = 25.0;
 
 #[derive(Copy, Clone)]
 pub enum Waypoint {
@@ -27,6 +30,9 @@ pub struct FieldWaypointList(pub Vec<Option<Waypoint>>);
 pub struct FieldWaypoint(usize);
 
 #[derive(Component)]
+pub struct FieldRotationAnchor(usize);
+
+#[derive(Component)]
 pub struct DrawnTrajectory;
 
 pub fn setup(mut commands: Commands) {
@@ -39,10 +45,18 @@ pub fn setup(mut commands: Commands) {
         )
     );
 
+    let wp2 = Waypoint::Pose(FieldPose::new(
+        FieldPosition::new(
+            Length::new::<meter>(1.0),
+            Length::new::<meter>(1.0)
+        ),
+        Angle::new::<radian>(0.0)
+    ));
+
+    spawn_waypoint(wp2, &mut list, &mut commands);
     spawn_waypoint(wp, &mut list, &mut commands);
     spawn_waypoint(wp, &mut list, &mut commands);
-    spawn_waypoint(wp, &mut list, &mut commands);
-    spawn_waypoint(wp, &mut list, &mut commands);
+    spawn_waypoint(wp2, &mut list, &mut commands);
 
     let default_shape = shapes::Circle::default();
     commands.spawn_bundle(GeometryBuilder::build_as(
@@ -56,18 +70,32 @@ pub fn setup(mut commands: Commands) {
 }
 
 fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &mut Commands) {
-    let shape = shapes::Circle {
+    let waypoint_shape = shapes::Circle {
         radius: WAYPOINT_RADIUS - 4.0,
         center: Default::default()
     };
     commands.spawn_bundle(GeometryBuilder::build_as(
-        &shape,
+        &waypoint_shape,
         DrawMode::Outlined {
             fill_mode: FillMode::color(Color::GREEN),
             outline_mode: StrokeMode::new(Color::LIME_GREEN, 4.0)
         },
         Transform::default()
     )).insert(FieldWaypoint(list.0.len()));
+
+    let rotation_anchor_shape = shapes::Circle {
+        radius: ROTATION_ANCHOR_POINT_RADIUS - 4.0,
+        center: Default::default()
+    };
+    commands.spawn_bundle(GeometryBuilder::build_as(
+        &rotation_anchor_shape,
+        DrawMode::Outlined {
+            fill_mode: FillMode::color(Color::PURPLE),
+            outline_mode: StrokeMode::new(Color::PINK, 4.0)
+        },
+        Transform::default()
+    )).insert(FieldRotationAnchor(list.0.len()));
+
     list.0.push(Some(waypoint))
 }
 
@@ -98,6 +126,44 @@ pub fn waypoint_updater(
                 *visibility = Visibility {
                     is_visible: true
                 }
+            }
+        }
+    }
+}
+
+pub fn rotation_anchor_updater(
+    field: Res<Field>,
+    layout: Res<Layout>,
+    mut query: Query<(&FieldRotationAnchor, &mut Transform, &mut Visibility)>,
+    waypoints: Res<FieldWaypointList>
+) {
+    for i in query.iter_mut() {
+        let (rotation_anchor, mut transform, mut visibility): (&FieldRotationAnchor, Mut<Transform>, Mut<Visibility>) = i;
+
+        if let Some(Waypoint::Pose(pose)) = waypoints.0[rotation_anchor.0] {
+            let center_transform = field.to_screen_transform(
+                &layout,
+                &pose,
+                FieldZ::AUTO_WAYPOINTS.0,
+            );
+
+            let theta = pose.rotation.get::<radian>();
+            let transform_offset = Vec3::new(
+                theta.cos() * ROTATION_ANCHOR_REVOLUTION_RADIUS,
+                theta.sin() * ROTATION_ANCHOR_REVOLUTION_RADIUS,
+                0.0
+            );
+
+            let final_transform = Transform::from_translation(center_transform.translation + transform_offset);
+
+            *transform = final_transform;
+
+            *visibility = Visibility {
+                is_visible: true
+            }
+        } else {
+            *visibility = Visibility {
+                is_visible: false
             }
         }
     }
@@ -149,7 +215,20 @@ pub fn waypoint_grab_system(
                         };
                     }
                 }
-                CursorGrabOption::Rotation(_) => {}
+                CursorGrabOption::Rotation(id) => {
+                    if let Some(Waypoint::Pose(pose)) = waypoints.0[id] {
+                        if let Some(cursor_pos) = cursor_state.pos {
+                            waypoints.0[id] = Some(Waypoint::Pose(FieldPose::new(
+                                pose.translation,
+                                Angle::new::<radian>(
+                                    (cursor_pos.y - pose.translation.y).get::<meter>().atan2(
+                                        (cursor_pos.x - pose.translation.x).get::<meter>()
+                                    )
+                                )
+                            )));
+                        }
+                    }
+                }
                 CursorGrabOption::None => {}
             }
         }
@@ -162,18 +241,44 @@ pub fn waypoint_grab_system(
             match event.state {
                 ElementState::Pressed => {
                     if let CursorGrabOption::None = cursor_state.grabbed {
-                        for (id, w) in waypoints.0.iter().enumerate() {
-                            if let Some(w) = w {
-                                let field_position = match w {
-                                    Waypoint::Translation(t) => { t }
-                                    Waypoint::Pose(p) => { &p.translation }
-                                };
-                                if let Some(mouse_pos) = cursor_state.pos {
+                        if let Some(mouse_pos) = cursor_state.pos {
+                            'outer: for (id, w) in waypoints.0.iter().enumerate() {
+                                if let Some(w) = w {
+                                    let field_position: &FieldPosition;
+
+                                    match w {
+                                        Waypoint::Pose(pose) => {
+                                            field_position = &pose.translation;
+
+                                            let theta = pose.rotation.get::<radian>();
+                                            let anchor_pos = FieldPosition::new(
+                                                field_position.x + (
+                                                    theta.cos() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
+                                                        (field.size.x / layout.field.size.x)
+                                                ),
+                                                field_position.y + (
+                                                    theta.sin() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
+                                                        (field.size.y / layout.field.size.y)
+                                                )
+                                            );
+
+                                            let d = mouse_pos.dist(&anchor_pos);
+                                            let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
+
+                                            if d <= ROTATION_ANCHOR_POINT_RADIUS {
+                                                cursor_state.grabbed = CursorGrabOption::Rotation(id);
+                                                break 'outer;
+                                            }
+                                        }
+                                        Waypoint::Translation(t) => { field_position = t }
+                                    }
+
                                     let d = mouse_pos.dist(field_position);
                                     let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
 
                                     if d <= WAYPOINT_RADIUS {
                                         cursor_state.grabbed = CursorGrabOption::Position(id);
+                                        break;
                                     }
                                 }
                             }

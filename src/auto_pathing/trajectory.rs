@@ -1,8 +1,13 @@
+use std::env;
 use bevy::prelude::*;
 use bevy_prototype_lyon::entity::ShapeBundle;
 use bevy_prototype_lyon::prelude::*;
+use pyo3::Python;
+use pyo3::types::{PyFunction, PyList};
 use uom::ConstZero;
+use uom::si::angle::radian;
 use uom::si::f32::*;
+use uom::si::length::meter;
 
 use crate::auto_pathing::waypoints::{FieldWaypointList, Waypoint};
 use crate::field::{Field, FieldPosition};
@@ -42,6 +47,22 @@ pub fn generate_trajectory(waypoints: &FieldWaypointList) -> Trajectory {
             })
         }
     }
+
+    // Python::with_gil(|py| {
+    //     let path: &PyList = py.import("sys").unwrap().getattr("path").unwrap().extract().unwrap();
+    //     path.append(env::current_dir().unwrap().to_str().unwrap()).unwrap();
+    //     let module = py.import("python.robot_sim_server").unwrap();
+    //     let traj_function: &PyFunction = module.getattr("gen_trajectory").unwrap().extract().unwrap();
+    //     let initial_pose: (f32, f32, f32) = match waypoints.0[0].unwrap() {
+    //         Waypoint::Translation(translation) => { (translation.x.get::<meter>(), translation.y.get::<meter>(), 0.0) }
+    //         Waypoint::Pose(pose) => { (pose.translation.x.get::<meter>(), pose.translation.y.get::<meter>(), pose.rotation.get::<radian>()) }
+    //     };
+    //     let final_pose: (f32, f32, f32) = match waypoints.0.last().unwrap().unwrap() {
+    //         Waypoint::Translation(translation) => { (translation.x.get::<meter>(), translation.y.get::<meter>(), 0.0) }
+    //         Waypoint::Pose(pose) => { (pose.translation.x.get::<meter>(), pose.translation.y.get::<meter>(), pose.rotation.get::<radian>()) }
+    //     };
+    //     info!("{:?}", traj_function.call((initial_pose, (), final_pose), None));
+    // });
 
     Trajectory { points }
 }

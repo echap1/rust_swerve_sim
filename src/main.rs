@@ -2,6 +2,7 @@ mod field;
 mod layout;
 mod robot;
 mod auto_pathing;
+// mod robotpy_bridge;
 
 extern crate uom;
 
