@@ -2,7 +2,7 @@ mod field;
 mod layout;
 mod robot;
 mod auto_pathing;
-// mod robotpy_bridge;
+mod robot_connection;
 
 extern crate uom;
 
@@ -15,6 +15,8 @@ use crate::layout::{LayoutPlugin, Layout};
 use crate::robot::RobotPlugin;
 
 fn main() {
+    robot_connection::connect();
+
     App::new()
         // Default Plugins
         .add_plugins(DefaultPlugins)

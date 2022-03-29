@@ -4,8 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-pyo3 = "0.16.0"
 bevy = "0.6.1"
 bevy_prototype_lyon = "0.4.0"
 uom = "0.32.0"
 tonic = "0.6.2"
+prost = "0.9"
+message-io = { version = "0.14.5", default-features = false, features = ["tcp", "udp"] }
+
+[build-dependencies]
+tonic-build = "0.6.2"
+
+[dependencies.pyo3]
+version = "0.16.0"
+#features = ["auto-initialize"]
