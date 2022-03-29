@@ -74,11 +74,26 @@ fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &m
         radius: WAYPOINT_RADIUS - 4.0,
         center: Default::default()
     };
+
+    let fill_color: Color;
+    let stroke_color: Color;
+
+    match waypoint {
+        Waypoint::Translation(_) => {
+            fill_color = Color::GREEN;
+            stroke_color = Color::LIME_GREEN;
+        }
+        Waypoint::Pose(_) => {
+            fill_color = Color::ORANGE_RED;
+            stroke_color = Color::RED;
+        }
+    }
+
     commands.spawn_bundle(GeometryBuilder::build_as(
         &waypoint_shape,
         DrawMode::Outlined {
-            fill_mode: FillMode::color(Color::GREEN),
-            outline_mode: StrokeMode::new(Color::LIME_GREEN, 4.0)
+            fill_mode: FillMode::color(fill_color),
+            outline_mode: StrokeMode::new(stroke_color, 4.0)
         },
         Transform::default()
     )).insert(FieldWaypoint(list.0.len()));

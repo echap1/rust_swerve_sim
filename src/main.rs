@@ -13,9 +13,11 @@ use crate::auto_pathing::AutoPathingPlugin;
 use crate::field::FieldManagementPlugin;
 use crate::layout::{LayoutPlugin, Layout};
 use crate::robot::RobotPlugin;
+use crate::robot_connection::RobotClient;
 
 fn main() {
-    robot_connection::connect();
+    let client = RobotClient::connect();
+    client.gen_trajectory();
 
     App::new()
         // Default Plugins

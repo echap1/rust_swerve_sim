@@ -1,33 +1,52 @@
-use message_io::network::{NetEvent, Transport};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+use message_io::network::{Endpoint, NetEvent, Transport};
 use message_io::node;
-use message_io::node::{NodeEvent, NodeListener};
+use message_io::node::{NodeEvent, NodeHandler, NodeListener};
 
-enum Signal {
-    Test
+pub struct RobotClient {
+    endpoint: Endpoint
 }
 
-pub fn connect() {
-    let (handler, listener) = node::split::<Signal>();
-    let (server, _) = handler.network().connect(Transport::FramedTcp, "127.0.0.1:3042").unwrap();
+impl RobotClient {
+    pub fn connect() -> Self {
+        let (handler, listener) = node::split::<()>();
 
-    println!("Connecting...");
+        let (endpoint, _) = handler.network().connect(Transport::FramedTcp, "127.0.0.1:3042").unwrap();
 
-    listener.for_each(move |event| match event {
-        NodeEvent::Network(net_event) => match net_event {
-            NetEvent::Connected(endpoint, result) => {
-                if result {
-                    println!("Connected to {:?}!", endpoint);
-                    handler.stop();
-                } else {
-                    println!("Connection to {:?} failed.", endpoint);
+        println!("Connecting...");
+
+        listener.for_each(move |event| match event {
+            NodeEvent::Network(net_event) => match net_event {
+                NetEvent::Connected(endpoint, result) => {
+                    if result {
+                        println!("Connected to {:?}", endpoint);
+                        handler.stop();
+                    } else {
+                        println!("Connecting...");
+                        std::thread::sleep(Duration::from_millis(200));
+                        handler.network().connect(Transport::FramedTcp, "127.0.0.1:3042").unwrap();
+                    }
                 }
+                _ => {}
             }
-            NetEvent::Accepted(_, _) => {}
-            NetEvent::Message(_, _) => {}
-            NetEvent::Disconnected(_) => {}
+            _ => {}
+        });
+
+        let (handler, listener) = node::split::<()>();
+        let status = handler.network().send(endpoint, b"Hello?");
+        println!("{:?}", status);
+
+        Self {
+            endpoint
         }
-        NodeEvent::Signal(signal) => match signal {
-            Signal::Test => {}
-        }
-    });
+    }
+
+    pub fn gen_trajectory(&self) {
+        let (handler, listener) = node::split::<()>();
+        println!("{:?}", self.endpoint);
+        let status = handler.network().send(self.endpoint, b"Hello World");
+        println!("{:?}", status);
+    }
 }
