@@ -1,52 +1,51 @@
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use message_io::network::{Endpoint, NetEvent, Transport};
 use message_io::node;
 use message_io::node::{NodeEvent, NodeHandler, NodeListener};
+use uom::ConstZero;
+use uom::si::angle::Angle;
+use uom::si::f32::Length;
+use crate::auto_pathing::trajectory::Trajectory;
+use crate::field::{FieldPose, FieldPosition};
 
 pub struct RobotClient {
-    endpoint: Endpoint
+    stream: TcpStream
 }
 
 impl RobotClient {
     pub fn connect() -> Self {
-        let (handler, listener) = node::split::<()>();
+        let stream: TcpStream;
 
-        let (endpoint, _) = handler.network().connect(Transport::FramedTcp, "127.0.0.1:3042").unwrap();
-
-        println!("Connecting...");
-
-        listener.for_each(move |event| match event {
-            NodeEvent::Network(net_event) => match net_event {
-                NetEvent::Connected(endpoint, result) => {
-                    if result {
-                        println!("Connected to {:?}", endpoint);
-                        handler.stop();
-                    } else {
-                        println!("Connecting...");
-                        std::thread::sleep(Duration::from_millis(200));
-                        handler.network().connect(Transport::FramedTcp, "127.0.0.1:3042").unwrap();
-                    }
+        loop {
+            match TcpStream::connect("127.0.0.1:65426") {
+                Ok(s) => {
+                    stream = s;
+                    break;
                 }
-                _ => {}
+                Err(_) => {
+                    println!("Connecting...");
+                    std::thread::sleep(Duration::from_millis(200));
+                }
             }
-            _ => {}
-        });
+        }
 
-        let (handler, listener) = node::split::<()>();
-        let status = handler.network().send(endpoint, b"Hello?");
-        println!("{:?}", status);
+        println!("Connected!");
 
         Self {
-            endpoint
+            stream
         }
     }
 
-    pub fn gen_trajectory(&self) {
-        let (handler, listener) = node::split::<()>();
-        println!("{:?}", self.endpoint);
-        let status = handler.network().send(self.endpoint, b"Hello World");
-        println!("{:?}", status);
+    pub fn gen_trajectory(&mut self, trajectory: &Trajectory) -> Vec<FieldPosition> {
+        self.stream.write(&serde_json::to_vec(&trajectory).unwrap()).unwrap();
+        let mut buf = [0; 65536];
+        let length = self.stream.read(&mut buf).unwrap();
+        let res = String::from_utf8_lossy(&buf[0..length]);
+        // println!("{}", res);
+        serde_json::from_str(&res).unwrap()
     }
 }

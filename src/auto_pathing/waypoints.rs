@@ -38,25 +38,44 @@ pub struct DrawnTrajectory;
 pub fn setup(mut commands: Commands) {
     let mut list = FieldWaypointList::default();
 
-    let wp = Waypoint::Translation(
+    let wp1 = Waypoint::Pose(
+        FieldPose::new(
+            FieldPosition::new(
+                Length::new::<meter>(1.0),
+                Length::new::<meter>(1.0)
+            ),
+            Angle::ZERO
+        )
+    );
+
+    let wp2 = Waypoint::Translation(
         FieldPosition::new(
-            Length::new::<meter>(1.0),
+            Length::new::<meter>(3.0),
+            Length::new::<meter>(2.0)
+        )
+    );
+
+    let wp3 = Waypoint::Translation(
+        FieldPosition::new(
+            Length::new::<meter>(4.0),
             Length::new::<meter>(1.0)
         )
     );
 
-    let wp2 = Waypoint::Pose(FieldPose::new(
-        FieldPosition::new(
-            Length::new::<meter>(1.0),
-            Length::new::<meter>(1.0)
-        ),
-        Angle::new::<radian>(0.0)
-    ));
+    let wp4 = Waypoint::Pose(
+        FieldPose::new(
+            FieldPosition::new(
+                Length::new::<meter>(6.0),
+                Length::new::<meter>(1.0)
+            ),
+            Angle::ZERO
+        )
+    );
 
+    spawn_waypoint(wp1, &mut list, &mut commands);
     spawn_waypoint(wp2, &mut list, &mut commands);
-    spawn_waypoint(wp, &mut list, &mut commands);
-    spawn_waypoint(wp, &mut list, &mut commands);
-    spawn_waypoint(wp2, &mut list, &mut commands);
+    spawn_waypoint(wp3, &mut list, &mut commands);
+    spawn_waypoint(wp4, &mut list, &mut commands);
 
     let default_shape = shapes::Circle::default();
     commands.spawn_bundle(GeometryBuilder::build_as(

@@ -6,10 +6,12 @@ edition = "2021"
 [dependencies]
 bevy = "0.6.1"
 bevy_prototype_lyon = "0.4.0"
-uom = "0.32.0"
+uom = { version = "0.32.0", features = ["use_serde"] }
 tonic = "0.6.2"
 prost = "0.9"
 message-io = { version = "0.14.5", default-features = false, features = ["tcp", "udp"] }
+serde = "1.0.136"
+serde_json = "1.0.79"
 
 [build-dependencies]
 tonic-build = "0.6.2"

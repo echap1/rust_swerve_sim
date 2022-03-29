@@ -9,27 +9,33 @@ use uom::si::angle::radian;
 use uom::si::f32::*;
 use uom::si::length::meter;
 
-use crate::auto_pathing::waypoints::{FieldWaypointList, Waypoint};
-use crate::field::{Field, FieldPosition};
-use crate::Layout;
+use serde::Serialize;
 
-#[derive(Default, Component)]
+use crate::auto_pathing::waypoints::{FieldWaypointList, Waypoint};
+use crate::field::{Field, FieldPose, FieldPosition};
+use crate::{Layout, RobotClient};
+
+#[derive(Component, Default, Serialize)]
 pub struct Trajectory {
-    points: Vec<FieldPosition>
+    pub start: FieldPose,
+    pub points: Vec<FieldPosition>,
+    pub end: FieldPose
 }
 
-pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &Layout) -> Path {
+pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &Layout, client: &mut RobotClient) -> Path {
+    let points = client.gen_trajectory(trajectory);
+
     let mut builder = PathBuilder::new();
 
-    if trajectory.points.len() == 0 {
+    if points.len() == 0 {
         builder.move_to(Vec2::new(0.0, 0.0));
         return builder.build();
     }
 
-    builder.move_to(field.to_screen_vec(layout, &trajectory.points[0]));
+    builder.move_to(field.to_screen_vec(layout, &points[0]));
 
     // TODO Dont draw line to first point
-    for p in &trajectory.points {
+    for p in &points {
         builder.line_to(field.to_screen_vec(layout, p));
     }
 
@@ -39,7 +45,9 @@ pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &La
 pub fn generate_trajectory(waypoints: &FieldWaypointList) -> Trajectory {
     let mut points: Vec<FieldPosition> = Vec::with_capacity(waypoints.0.len());
 
-    for w in &waypoints.0 {
+    let internal_waypoints = &waypoints.0[1..waypoints.0.len()-1];
+
+    for w in internal_waypoints {
         if let Some(w) = w {
             points.push(match w {
                 Waypoint::Translation(t) => { *t }
@@ -48,23 +56,17 @@ pub fn generate_trajectory(waypoints: &FieldWaypointList) -> Trajectory {
         }
     }
 
-    // Python::with_gil(|py| {
-    //     let path: &PyList = py.import("sys").unwrap().getattr("path").unwrap().extract().unwrap();
-    //     path.append(env::current_dir().unwrap().to_str().unwrap()).unwrap();
-    //     let module = py.import("python.robot_sim_server").unwrap();
-    //     let traj_function: &PyFunction = module.getattr("gen_trajectory").unwrap().extract().unwrap();
-    //     let initial_pose: (f32, f32, f32) = match waypoints.0[0].unwrap() {
-    //         Waypoint::Translation(translation) => { (translation.x.get::<meter>(), translation.y.get::<meter>(), 0.0) }
-    //         Waypoint::Pose(pose) => { (pose.translation.x.get::<meter>(), pose.translation.y.get::<meter>(), pose.rotation.get::<radian>()) }
-    //     };
-    //     let final_pose: (f32, f32, f32) = match waypoints.0.last().unwrap().unwrap() {
-    //         Waypoint::Translation(translation) => { (translation.x.get::<meter>(), translation.y.get::<meter>(), 0.0) }
-    //         Waypoint::Pose(pose) => { (pose.translation.x.get::<meter>(), pose.translation.y.get::<meter>(), pose.rotation.get::<radian>()) }
-    //     };
-    //     info!("{:?}", traj_function.call((initial_pose, (), final_pose), None));
-    // });
-
-    Trajectory { points }
+    Trajectory {
+        start: match waypoints.0.first().unwrap().unwrap() {
+            Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
+            Waypoint::Pose(p) => { p }
+        },
+        points,
+        end: match waypoints.0.last().unwrap().unwrap() {
+            Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
+            Waypoint::Pose(p) => { p }
+        }
+    }
 }
 
 pub fn trajectory_updater(mut query: Query<&mut Trajectory>, waypoints: Res<FieldWaypointList>) {
@@ -72,9 +74,9 @@ pub fn trajectory_updater(mut query: Query<&mut Trajectory>, waypoints: Res<Fiel
     *trajectory = generate_trajectory(&waypoints);
 }
 
-pub fn trajectory_path_updater(mut query: Query<(&Trajectory, &mut Path)>, field: Res<Field>, layout: Res<Layout>) {
+pub fn trajectory_path_updater(mut query: Query<(&Trajectory, &mut Path)>, field: Res<Field>, layout: Res<Layout>, mut client: ResMut<RobotClient>) {
     for i in query.iter_mut() {
         let (trajectory, mut path): (&Trajectory, Mut<Path>) = i;
-        *path = build_trajectory_path(trajectory, &field, &layout);
+        *path = build_trajectory_path(trajectory, &field, &layout, &mut client);
     }
 }

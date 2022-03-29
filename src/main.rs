@@ -9,6 +9,7 @@ extern crate uom;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 use crate::auto_pathing::AutoPathingPlugin;
+use crate::auto_pathing::trajectory::Trajectory;
 
 use crate::field::FieldManagementPlugin;
 use crate::layout::{LayoutPlugin, Layout};
@@ -17,7 +18,6 @@ use crate::robot_connection::RobotClient;
 
 fn main() {
     let client = RobotClient::connect();
-    client.gen_trajectory();
 
     App::new()
         // Default Plugins
@@ -27,6 +27,7 @@ fn main() {
         // MSAA and BG color
         .insert_resource(Msaa { samples: 4 })
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.05)))
+        .insert_resource(client)
 
         .add_plugin(LayoutPlugin)
         .add_plugin(FieldManagementPlugin)

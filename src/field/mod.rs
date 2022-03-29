@@ -11,19 +11,21 @@ use uom::si::length::meter;
 
 use crate::layout::Layout;
 
+use serde::{Serialize, Deserialize, Serializer};
+
 pub struct FieldManagementPlugin;
 
 pub struct Field {
     pub size: FieldPosition,
 }
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct FieldPosition {
     pub x: Length,
     pub y: Length,
 }
 
-#[derive(Component, Debug, Copy, Clone)]
+#[derive(Component, Default, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct FieldPose {
     pub translation: FieldPosition,
     pub rotation: Angle,

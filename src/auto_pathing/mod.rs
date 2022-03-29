@@ -1,6 +1,6 @@
 mod config_panel;
 mod waypoints;
-mod trajectory;
+pub mod trajectory;
 
 use bevy::prelude::*;
 
