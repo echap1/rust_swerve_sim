@@ -30,7 +30,7 @@ pub struct FieldWaypointID {
 }
 
 #[derive(Default)]
-pub struct FieldWaypointList(pub Vec<Vec<Option<Waypoint>>>);
+pub struct FieldWaypointList(pub Vec<Vec<Option<Waypoint>>>, pub usize);
 
 #[derive(Component)]
 pub struct FieldWaypoint(FieldWaypointID);
@@ -102,6 +102,10 @@ pub fn setup(mut commands: Commands) {
 
     commands.insert_resource(list);
     commands.insert_resource(CursorState::default());
+}
+
+fn is_active(id: FieldWaypointID, list: &FieldWaypointList) -> bool {
+    id.path_id == list.1
 }
 
 pub fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &mut Commands, routine_number: usize) {
@@ -186,6 +190,13 @@ pub fn waypoint_updater(
             continue;
         }
 
+        if !is_active(field_waypoint.0, &waypoints) {
+            *visibility = Visibility {
+                is_visible: false
+            };
+            continue;
+        }
+
         match waypoints.0[field_waypoint.0.path_id][field_waypoint.0.idx] {
             None => {
                 *visibility = Visibility {
@@ -227,6 +238,13 @@ pub fn rotation_anchor_updater(
 
         if rotation_anchor.0.idx >= waypoints.0[rotation_anchor.0.path_id].len() {
             commands.entity(entity).despawn();
+            continue;
+        }
+
+        if !is_active(rotation_anchor.0, &waypoints) {
+            *visibility = Visibility {
+                is_visible: false
+            };
             continue;
         }
 
@@ -334,6 +352,12 @@ pub fn waypoint_grab_system(
                         if let Some(mouse_pos) = cursor_state.pos {
                             'outer: for (path_id, path) in waypoints.0.iter().enumerate() {
                                 for (idx, w) in path.iter().enumerate() {
+                                    let id = FieldWaypointID { path_id, idx };
+
+                                    if !is_active(id, &waypoints) {
+                                        continue;
+                                    }
+
                                     if let Some(w) = w {
                                         let field_position: &FieldPosition;
 
@@ -357,9 +381,7 @@ pub fn waypoint_grab_system(
                                                 let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
 
                                                 if d <= ROTATION_ANCHOR_POINT_RADIUS {
-                                                    cursor_state.grabbed = CursorGrabOption::Rotation(FieldWaypointID {
-                                                        path_id, idx
-                                                    });
+                                                    cursor_state.grabbed = CursorGrabOption::Rotation(id);
                                                     break 'outer;
                                                 }
                                             }
@@ -370,9 +392,7 @@ pub fn waypoint_grab_system(
                                         let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
 
                                         if d <= WAYPOINT_RADIUS {
-                                            cursor_state.grabbed = CursorGrabOption::Position(FieldWaypointID {
-                                                path_id, idx
-                                            });
+                                            cursor_state.grabbed = CursorGrabOption::Position(id);
                                             break;
                                         }
                                     }

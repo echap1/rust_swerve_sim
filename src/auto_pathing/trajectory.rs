@@ -46,6 +46,10 @@ pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &La
 }
 
 pub fn generate_trajectory(waypoints: &FieldWaypointList, path_id: usize) -> Trajectory {
+    if waypoints.0[path_id].len() < 2 {
+        return Trajectory::default();
+    }
+    
     let mut points: Vec<FieldPosition> = Vec::with_capacity(waypoints.0.len());
 
     let internal_waypoints = &waypoints.0[path_id][1..waypoints.0[path_id].len()-1];
@@ -74,15 +78,25 @@ pub fn generate_trajectory(waypoints: &FieldWaypointList, path_id: usize) -> Tra
 
 pub fn trajectory_updater(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Trajectory, &TrajectoryID)>,
+    mut query: Query<(Entity, &mut Trajectory, &TrajectoryID, &mut Visibility)>,
     waypoints: Res<FieldWaypointList>
 ) {
     for i in query.iter_mut() {
-        let (entity, mut trajectory, id): (Entity, Mut<Trajectory>, &TrajectoryID) = i;
+        let (entity, mut trajectory, id, mut visibility): (Entity, Mut<Trajectory>, &TrajectoryID, Mut<Visibility>) = i;
 
         if waypoints.0.len() <= id.0 {
             commands.entity(entity).despawn();
             continue;
+        }
+        
+        if !waypoints.1 == id.0 {
+            *visibility = Visibility {
+                is_visible: false
+            }
+        } else {
+            *visibility = Visibility {
+                is_visible: true
+            }
         }
 
         *trajectory = generate_trajectory(&waypoints, id.0);

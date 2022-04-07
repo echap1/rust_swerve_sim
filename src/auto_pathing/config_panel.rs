@@ -1,12 +1,15 @@
 use bevy::app::Events;
 use bevy::prelude::*;
+use bevy_prototype_lyon::prelude::*;
 use uom::ConstZero;
 use uom::si::angle::Angle;
 use uom::si::f32::Length;
 use uom::si::length::meter;
 use crate::auto_pathing::waypoints::{FieldWaypointList, spawn_waypoint, Waypoint};
 use crate::field::{FieldPose, FieldPosition};
-use crate::Layout;
+use crate::{Layout, Trajectory};
+use crate::auto_pathing::trajectory::TrajectoryID;
+use crate::field::render::FieldZ;
 use crate::layout::event::LayoutChangedEvent;
 use crate::layout::render::FONT_SIZE;
 
@@ -14,8 +17,11 @@ use crate::layout::render::FONT_SIZE;
 pub struct ConfigRoot;
 
 pub enum ConfigButtonAction {
-    AddWaypoint(usize),
-    RemoveWaypoint(usize)
+    AddWaypoint,
+    RemoveWaypoint,
+    IncrementPathIdx,
+    DecrementPathIdx,
+    AddPath
 }
 
 #[derive(Component)]
@@ -23,10 +29,34 @@ pub struct ConfigButton {
     action: ConfigButtonAction
 }
 
+#[derive(Component)]
+pub enum ConfigText {
+    RoutineNumber
+}
+
 const NORMAL_BUTTON: Color = Color::rgb(0.35, 0.35, 0.35);
 const HOVERED_BUTTON: Color = Color::rgb(0.45, 0.45, 0.45);
 const PRESSED_BUTTON: Color = Color::rgb(0.55, 0.75, 0.55);
 const TEXT_COLOR: Color = Color::BLACK;
+
+fn text(text: &str, asset_server: &AssetServer) -> TextBundle {
+    TextBundle {
+        style: Style {
+            margin: Rect::all(Val::Px(5.0)),
+            ..Default::default()
+        },
+        text: Text::with_section(
+            text,
+            TextStyle {
+                font: asset_server.load("fonts/JetBrainsMono-Bold.ttf"),
+                font_size: FONT_SIZE,
+                color: Color::GRAY,
+            },
+            TextAlignment::default(),
+        ),
+        ..TextBundle::default()
+    }
+}
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(NodeBundle {
@@ -37,32 +67,29 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             color: UiColor(Color::NONE),
             ..Default::default()
         }).with_children(|parent_2| {
-            parent_2.spawn_bundle(TextBundle {
-                style: Style {
-                    margin: Rect::all(Val::Px(5.0)),
-                    ..Default::default()
-                },
-                text: Text::with_section(
-                    "Waypoint Number",
-                    TextStyle {
-                        font: asset_server.load("fonts/JetBrainsMono-Bold.ttf"),
-                        font_size: FONT_SIZE,
-                        color: Color::GRAY,
-                    },
-                    TextAlignment::default(),
-                ),
-                ..TextBundle::default()
-            });
+            parent_2.spawn_bundle(text("Waypoint Number", &asset_server));
             generate_button(parent_2, "+".to_string(), &asset_server, ConfigButton {
-                action: ConfigButtonAction::AddWaypoint(0)
+                action: ConfigButtonAction::AddWaypoint
             });
             generate_button(parent_2, "-".to_string(), &asset_server, ConfigButton {
-                action: ConfigButtonAction::RemoveWaypoint(0)
+                action: ConfigButtonAction::RemoveWaypoint
             });
         });
-        // generate_button(parent, "helo".to_string(), &asset_server, ConfigButton {
-        //     action: ConfigButtonAction::AddWaypoint
-        // });
+        parent.spawn_bundle(NodeBundle {
+            color: UiColor(Color::NONE),
+            ..Default::default()
+        }).with_children(|parent_2| {
+            parent_2.spawn_bundle(text("Routine: ", &asset_server)).insert(ConfigText::RoutineNumber);
+            generate_button(parent_2, "+".to_string(), &asset_server, ConfigButton {
+                action: ConfigButtonAction::IncrementPathIdx
+            });
+            generate_button(parent_2, "-".to_string(), &asset_server, ConfigButton {
+                action: ConfigButtonAction::DecrementPathIdx
+            });
+        });
+        generate_button(parent, "Add Path".to_string(), &asset_server, ConfigButton {
+            action: ConfigButtonAction::AddPath
+        });
     }).insert(ConfigRoot {
 
     });
@@ -125,6 +152,17 @@ pub fn root_updater(
     };
 }
 
+pub fn config_text_updater(mut query: Query<(&mut Text, &ConfigText)>, list: Res<FieldWaypointList>) {
+    for i in query.iter_mut() {
+        let (mut text, t): (Mut<Text>, &ConfigText) = i;
+        match t {
+            ConfigText::RoutineNumber => {
+                text.sections[0].value = "Routine: ".to_string() + &*list.1.to_string();
+            }
+        }
+    }
+}
+
 pub fn button_system(
     mut interaction_query: Query<
         (&Interaction, &mut UiColor, &Children, &ConfigButton),
@@ -142,8 +180,9 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
 
                 match button.action {
-                    ConfigButtonAction::AddWaypoint(path_id) => {
-                        let l = waypoint_list.0[path_id].last_mut().unwrap();
+                    ConfigButtonAction::AddWaypoint => {
+                        let path_idx = waypoint_list.1;
+                        let l = waypoint_list.0[path_idx].last_mut().unwrap();
                         *l = match l {
                             None => { None }
                             Some(w) => {
@@ -158,13 +197,14 @@ pub fn button_system(
                             Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
                             &mut waypoint_list,
                             &mut commands,
-                            path_id
+                            path_idx
                         )
                     }
-                    ConfigButtonAction::RemoveWaypoint(path_id) => {
-                        waypoint_list.0[path_id].pop();
+                    ConfigButtonAction::RemoveWaypoint => {
+                        let path_idx = waypoint_list.1;
+                        waypoint_list.0[path_idx].pop();
 
-                        let l = waypoint_list.0[path_id].last_mut().unwrap();
+                        let l = waypoint_list.0[path_idx].last_mut().unwrap();
                         *l = match l {
                             None => { None }
                             Some(w) => {
@@ -180,6 +220,43 @@ pub fn button_system(
                                 }
                             }
                         };
+                    }
+                    ConfigButtonAction::IncrementPathIdx => {
+                        if waypoint_list.1 >= waypoint_list.0.len() - 1 {
+                            waypoint_list.1 = 0;
+                        } else {
+                            waypoint_list.1 += 1;
+                        }
+                    }
+                    ConfigButtonAction::DecrementPathIdx => {
+                        if waypoint_list.1 == 0 {
+                            waypoint_list.1 = waypoint_list.0.len() - 1;
+                        } else {
+                            waypoint_list.1 -= 1;
+                        }
+                    }
+                    ConfigButtonAction::AddPath => {
+                        let path_idx = waypoint_list.0.len();
+                        waypoint_list.0.push(vec![]);
+                        spawn_waypoint(
+                            Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
+                            &mut waypoint_list,
+                            &mut commands,
+                            path_idx
+                        );
+                        spawn_waypoint(
+                            Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(2.0), Length::new::<meter>(1.0)), Angle::ZERO)),
+                            &mut waypoint_list,
+                            &mut commands,
+                            path_idx
+                        );
+                        let default_shape = shapes::Circle::default();
+                        commands.spawn_bundle(GeometryBuilder::build_as(
+                            &default_shape,
+                            DrawMode::Stroke(StrokeMode::new(Color::WHITE, 2.0)),
+                            Transform::from_xyz(0.0, 0.0, FieldZ::AUTO_PATH.0)
+                        )).insert(Trajectory::default()).insert(TrajectoryID(path_idx));
+                        waypoint_list.1 = path_idx;
                     }
                 }
             }
