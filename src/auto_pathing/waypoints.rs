@@ -141,13 +141,20 @@ pub fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands
 }
 
 pub fn waypoint_updater(
+    mut commands: Commands,
     field: Res<Field>,
     layout: Res<Layout>,
-    mut query: Query<(&FieldWaypoint, &mut Transform, &mut Visibility)>,
+    mut query: Query<(Entity, &FieldWaypoint, &mut Transform, &mut Visibility)>,
     waypoints: Res<FieldWaypointList>
 ) {
     for i in query.iter_mut() {
-        let (field_waypoint, mut transform, mut visibility): (&FieldWaypoint, Mut<Transform>, Mut<Visibility>) = i;
+        let (entity, field_waypoint, mut transform, mut visibility): (Entity, &FieldWaypoint, Mut<Transform>, Mut<Visibility>) = i;
+
+        if field_waypoint.0 >= waypoints.0.len() {
+            commands.entity(entity).despawn();
+            continue;
+        }
+
         match waypoints.0[field_waypoint.0] {
             None => {
                 *visibility = Visibility {
@@ -173,13 +180,19 @@ pub fn waypoint_updater(
 }
 
 pub fn rotation_anchor_updater(
+    mut commands: Commands,
     field: Res<Field>,
     layout: Res<Layout>,
-    mut query: Query<(&FieldRotationAnchor, &mut Transform, &mut Visibility)>,
+    mut query: Query<(Entity, &FieldRotationAnchor, &mut Transform, &mut Visibility)>,
     waypoints: Res<FieldWaypointList>
 ) {
     for i in query.iter_mut() {
-        let (rotation_anchor, mut transform, mut visibility): (&FieldRotationAnchor, Mut<Transform>, Mut<Visibility>) = i;
+        let (entity, rotation_anchor, mut transform, mut visibility): (Entity, &FieldRotationAnchor, Mut<Transform>, Mut<Visibility>) = i;
+
+        if rotation_anchor.0 >= waypoints.0.len() {
+            commands.entity(entity).despawn();
+            continue;
+        }
 
         if let Some(Waypoint::Pose(pose)) = waypoints.0[rotation_anchor.0] {
             let center_transform = field.to_screen_transform(

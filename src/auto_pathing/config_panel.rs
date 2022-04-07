@@ -14,12 +14,13 @@ use crate::layout::render::FONT_SIZE;
 pub struct ConfigRoot;
 
 pub enum ConfigButtonAction {
-    None
+    AddWaypoint,
+    RemoveWaypoint
 }
 
 #[derive(Component)]
 pub struct ConfigButton {
-    // action: ConfigButtonAction
+    action: ConfigButtonAction
 }
 
 const NORMAL_BUTTON: Color = Color::rgb(0.35, 0.35, 0.35);
@@ -52,16 +53,22 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ),
                 ..TextBundle::default()
             });
-            generate_button(parent_2, "+".to_string(), &asset_server);
-            generate_button(parent_2, "-".to_string(), &asset_server);
+            generate_button(parent_2, "+".to_string(), &asset_server, ConfigButton {
+                action: ConfigButtonAction::AddWaypoint
+            });
+            generate_button(parent_2, "-".to_string(), &asset_server, ConfigButton {
+                action: ConfigButtonAction::RemoveWaypoint
+            });
         });
-        generate_button(parent, "helo".to_string(), &asset_server);
+        // generate_button(parent, "helo".to_string(), &asset_server, ConfigButton {
+        //     action: ConfigButtonAction::AddWaypoint
+        // });
     }).insert(ConfigRoot {
 
     });
 }
 
-fn generate_button(parent: &mut ChildBuilder, text: String, asset_server: &AssetServer) {
+fn generate_button(parent: &mut ChildBuilder, text: String, asset_server: &AssetServer, component: ConfigButton) {
     parent.spawn_bundle(ButtonBundle {
         color: UiColor(NORMAL_BUTTON),
         style: Style {
@@ -86,7 +93,7 @@ fn generate_button(parent: &mut ChildBuilder, text: String, asset_server: &Asset
             ),
             ..TextBundle::default()
         });
-    }).insert(ConfigButton {});
+    }).insert(component);
 }
 
 pub fn root_updater(
@@ -120,36 +127,60 @@ pub fn root_updater(
 
 pub fn button_system(
     mut interaction_query: Query<
-        (&Interaction, &mut UiColor, &Children),
+        (&Interaction, &mut UiColor, &Children, &ConfigButton),
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text>,
     mut waypoint_list: ResMut<FieldWaypointList>,
     mut commands: Commands
 ) {
-    for (interaction, mut color, children) in interaction_query.iter_mut() {
+    for i in interaction_query.iter_mut() {
+        let (interaction, mut color, children, button): (&Interaction, Mut<UiColor>, &Children, &ConfigButton) = i;
         let mut text = text_query.get_mut(children[0]).unwrap();
         match *interaction {
             Interaction::Clicked => {
                 *color = PRESSED_BUTTON.into();
 
-                let l = waypoint_list.0.last_mut().unwrap();
+                match button.action {
+                    ConfigButtonAction::AddWaypoint => {
+                        let l = waypoint_list.0.last_mut().unwrap();
+                        *l = match l {
+                            None => { None }
+                            Some(w) => {
+                                match w {
+                                    Waypoint::Translation(t) => { Some(Waypoint::Translation(*t)) }
+                                    Waypoint::Pose(p) => { Some(Waypoint::Translation(p.translation)) }
+                                }
+                            }
+                        };
 
-                *l = match l {
-                    None => { None }
-                    Some(w) => {
-                        match w {
-                            Waypoint::Translation(t) => { Some(Waypoint::Translation(*t)) }
-                            Waypoint::Pose(p) => { Some(Waypoint::Translation(p.translation)) }
-                        }
+                        spawn_waypoint(
+                            Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
+                            &mut waypoint_list,
+                            &mut commands
+                        )
                     }
-                };
+                    ConfigButtonAction::RemoveWaypoint => {
+                        waypoint_list.0.pop();
 
-                spawn_waypoint(
-                    Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
-                    &mut waypoint_list,
-                    &mut commands
-                )
+                        let l = waypoint_list.0.last_mut().unwrap();
+                        *l = match l {
+                            None => { None }
+                            Some(w) => {
+                                match w {
+                                    Waypoint::Translation(t) => {
+                                        Some(Waypoint::Pose(
+                                            FieldPose::new(*t, Angle::ZERO)
+                                        ))
+                                    }
+                                    Waypoint::Pose(p) => {
+                                        Some(Waypoint::Pose(*p))
+                                    }
+                                }
+                            }
+                        };
+                    }
+                }
             }
             Interaction::Hovered => {
                 *color = HOVERED_BUTTON.into();

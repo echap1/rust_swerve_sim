@@ -6,8 +6,8 @@ from pydantic import parse_obj_as
 from python.robot_comm_models import FieldPosition, FieldPose, Trajectory
 from python.robot_sim_server import gen_trajectory
 
-HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-PORT = 65426  # Port to listen on (non-privileged ports are > 1023)
+HOST = "127.0.0.1"
+PORT = 65426
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
