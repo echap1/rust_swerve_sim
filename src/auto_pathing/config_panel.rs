@@ -14,8 +14,8 @@ use crate::layout::render::FONT_SIZE;
 pub struct ConfigRoot;
 
 pub enum ConfigButtonAction {
-    AddWaypoint,
-    RemoveWaypoint
+    AddWaypoint(usize),
+    RemoveWaypoint(usize)
 }
 
 #[derive(Component)]
@@ -54,10 +54,10 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..TextBundle::default()
             });
             generate_button(parent_2, "+".to_string(), &asset_server, ConfigButton {
-                action: ConfigButtonAction::AddWaypoint
+                action: ConfigButtonAction::AddWaypoint(0)
             });
             generate_button(parent_2, "-".to_string(), &asset_server, ConfigButton {
-                action: ConfigButtonAction::RemoveWaypoint
+                action: ConfigButtonAction::RemoveWaypoint(0)
             });
         });
         // generate_button(parent, "helo".to_string(), &asset_server, ConfigButton {
@@ -142,8 +142,8 @@ pub fn button_system(
                 *color = PRESSED_BUTTON.into();
 
                 match button.action {
-                    ConfigButtonAction::AddWaypoint => {
-                        let l = waypoint_list.0.last_mut().unwrap();
+                    ConfigButtonAction::AddWaypoint(path_id) => {
+                        let l = waypoint_list.0[path_id].last_mut().unwrap();
                         *l = match l {
                             None => { None }
                             Some(w) => {
@@ -157,13 +157,14 @@ pub fn button_system(
                         spawn_waypoint(
                             Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
                             &mut waypoint_list,
-                            &mut commands
+                            &mut commands,
+                            path_id
                         )
                     }
-                    ConfigButtonAction::RemoveWaypoint => {
-                        waypoint_list.0.pop();
+                    ConfigButtonAction::RemoveWaypoint(path_id) => {
+                        waypoint_list.0[path_id].pop();
 
-                        let l = waypoint_list.0.last_mut().unwrap();
+                        let l = waypoint_list.0[path_id].last_mut().unwrap();
                         *l = match l {
                             None => { None }
                             Some(w) => {

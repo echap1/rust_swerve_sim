@@ -22,6 +22,9 @@ pub struct Trajectory {
     pub end: FieldPose
 }
 
+#[derive(Component)]
+pub struct TrajectoryID(pub usize);
+
 pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &Layout, client: &mut RobotClient) -> Path {
     let points = client.gen_trajectory(trajectory);
 
@@ -42,10 +45,10 @@ pub fn build_trajectory_path(trajectory: &Trajectory, field: &Field, layout: &La
     builder.build()
 }
 
-pub fn generate_trajectory(waypoints: &FieldWaypointList) -> Trajectory {
+pub fn generate_trajectory(waypoints: &FieldWaypointList, path_id: usize) -> Trajectory {
     let mut points: Vec<FieldPosition> = Vec::with_capacity(waypoints.0.len());
 
-    let internal_waypoints = &waypoints.0[1..waypoints.0.len()-1];
+    let internal_waypoints = &waypoints.0[path_id][1..waypoints.0[path_id].len()-1];
 
     for w in internal_waypoints {
         if let Some(w) = w {
@@ -57,21 +60,33 @@ pub fn generate_trajectory(waypoints: &FieldWaypointList) -> Trajectory {
     }
 
     Trajectory {
-        start: match waypoints.0.first().unwrap().unwrap() {
+        start: match waypoints.0[path_id].first().unwrap().unwrap() {
             Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
             Waypoint::Pose(p) => { p }
         },
         points,
-        end: match waypoints.0.last().unwrap().unwrap() {
+        end: match waypoints.0[path_id].last().unwrap().unwrap() {
             Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
             Waypoint::Pose(p) => { p }
         }
     }
 }
 
-pub fn trajectory_updater(mut query: Query<&mut Trajectory>, waypoints: Res<FieldWaypointList>) {
-    let mut trajectory: Mut<Trajectory> = query.single_mut();
-    *trajectory = generate_trajectory(&waypoints);
+pub fn trajectory_updater(
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Trajectory, &TrajectoryID)>,
+    waypoints: Res<FieldWaypointList>
+) {
+    for i in query.iter_mut() {
+        let (entity, mut trajectory, id): (Entity, Mut<Trajectory>, &TrajectoryID) = i;
+
+        if waypoints.0.len() <= id.0 {
+            commands.entity(entity).despawn();
+            continue;
+        }
+
+        *trajectory = generate_trajectory(&waypoints, id.0);
+    }
 }
 
 pub fn trajectory_path_updater(mut query: Query<(&Trajectory, &mut Path)>, field: Res<Field>, layout: Res<Layout>, mut client: ResMut<RobotClient>) {
