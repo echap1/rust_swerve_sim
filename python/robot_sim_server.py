@@ -13,7 +13,7 @@ def gen_trajectory(start_pose: FieldPose, waypoints: list[FieldPosition], end_po
         5 * m/s,
         1 * m/(s*s)
     )
-    samples = 100
+    samples = 300
     step = trajectory.totalTime() / samples
     t = 0
     points = []

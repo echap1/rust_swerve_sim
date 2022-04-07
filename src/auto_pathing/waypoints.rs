@@ -88,7 +88,7 @@ pub fn setup(mut commands: Commands) {
     commands.insert_resource(CursorState::default());
 }
 
-fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &mut Commands) {
+pub fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &mut Commands) {
     let waypoint_shape = shapes::Circle {
         radius: WAYPOINT_RADIUS - 4.0,
         center: Default::default()
@@ -97,15 +97,22 @@ fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands: &m
     let fill_color: Color;
     let stroke_color: Color;
 
-    match waypoint {
-        Waypoint::Translation(_) => {
-            fill_color = Color::GREEN;
-            stroke_color = Color::LIME_GREEN;
-        }
-        Waypoint::Pose(_) => {
-            fill_color = Color::ORANGE_RED;
-            stroke_color = Color::RED;
-        }
+    if list.0.len() == 0 {
+        fill_color = Color::GREEN;
+        stroke_color = Color::LIME_GREEN;
+    } else {
+        fill_color = Color::BLUE;
+        stroke_color = Color::TEAL;
+        // match waypoint {
+        //     Waypoint::Translation(_) => {
+        //         fill_color = Color::BLUE;
+        //         stroke_color = Color::TEAL;
+        //     }
+        //     Waypoint::Pose(_) => {
+        //         fill_color = Color::ORANGE_RED;
+        //         stroke_color = Color::RED;
+        //     }
+        // }
     }
 
     commands.spawn_bundle(GeometryBuilder::build_as(

@@ -1,5 +1,11 @@
 use bevy::app::Events;
 use bevy::prelude::*;
+use uom::ConstZero;
+use uom::si::angle::Angle;
+use uom::si::f32::Length;
+use uom::si::length::meter;
+use crate::auto_pathing::waypoints::{FieldWaypointList, spawn_waypoint, Waypoint};
+use crate::field::{FieldPose, FieldPosition};
 use crate::Layout;
 use crate::layout::event::LayoutChangedEvent;
 use crate::layout::render::FONT_SIZE;
@@ -16,28 +22,57 @@ pub struct ConfigButton {
     // action: ConfigButtonAction
 }
 
+const NORMAL_BUTTON: Color = Color::rgb(0.35, 0.35, 0.35);
+const HOVERED_BUTTON: Color = Color::rgb(0.45, 0.45, 0.45);
+const PRESSED_BUTTON: Color = Color::rgb(0.55, 0.75, 0.55);
+const TEXT_COLOR: Color = Color::BLACK;
+
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(NodeBundle {
         color: UiColor(Color::NONE),
-        ..NodeBundle::default()
+        ..Default::default()
     }).with_children(|parent| {
-        generate_button(parent, Color::GRAY, Color::BLACK, "helo".to_string(), &asset_server)
+        parent.spawn_bundle(NodeBundle {
+            color: UiColor(Color::NONE),
+            ..Default::default()
+        }).with_children(|parent_2| {
+            parent_2.spawn_bundle(TextBundle {
+                style: Style {
+                    margin: Rect::all(Val::Px(5.0)),
+                    ..Default::default()
+                },
+                text: Text::with_section(
+                    "Waypoint Number",
+                    TextStyle {
+                        font: asset_server.load("fonts/JetBrainsMono-Bold.ttf"),
+                        font_size: FONT_SIZE,
+                        color: Color::GRAY,
+                    },
+                    TextAlignment::default(),
+                ),
+                ..TextBundle::default()
+            });
+            generate_button(parent_2, "+".to_string(), &asset_server);
+            generate_button(parent_2, "-".to_string(), &asset_server);
+        });
+        generate_button(parent, "helo".to_string(), &asset_server);
     }).insert(ConfigRoot {
 
     });
 }
 
-fn generate_button(parent: &mut ChildBuilder, color: Color, text_color: Color, text: String, asset_server: &AssetServer) {
+fn generate_button(parent: &mut ChildBuilder, text: String, asset_server: &AssetServer) {
     parent.spawn_bundle(ButtonBundle {
-        color: UiColor(color),
+        color: UiColor(NORMAL_BUTTON),
         style: Style {
+            margin: Rect::all(Val::Px(5.0)),
             ..Default::default()
         },
         ..Default::default()
     }).with_children(|button_parent| {
         button_parent.spawn_bundle(TextBundle {
             style: Style {
-                margin: Rect::all(Val::Px(5.0)),
+                margin: Rect::all(Val::Px(7.0)),
                 ..Default::default()
             },
             text: Text::with_section(
@@ -45,7 +80,7 @@ fn generate_button(parent: &mut ChildBuilder, color: Color, text_color: Color, t
                 TextStyle {
                     font: asset_server.load("fonts/JetBrainsMono-Bold.ttf"),
                     font_size: FONT_SIZE,
-                    color: text_color,
+                    color: TEXT_COLOR,
                 },
                 TextAlignment::default(),
             ),
@@ -68,8 +103,9 @@ pub fn root_updater(
                 *style = Style {
                     size: Size::new(Val::Px(layout.auto_cfg.size.x), Val::Px(layout.auto_cfg.size.y - FONT_SIZE)),
                     justify_content: JustifyContent::FlexStart,
-                    align_items: AlignItems::FlexEnd,
+                    align_items: AlignItems::FlexStart,
                     position_type: PositionType::Absolute,
+                    flex_direction: FlexDirection::ColumnReverse,
                     position: Rect {
                         left: Val::Px(layout.auto_cfg.pos.x + (layout.screen_size.x / 2.0)),
                         bottom: Val::Px(layout.auto_cfg.pos.y + (layout.screen_size.y / 2.0)),
@@ -80,4 +116,47 @@ pub fn root_updater(
             }
         }
     };
+}
+
+pub fn button_system(
+    mut interaction_query: Query<
+        (&Interaction, &mut UiColor, &Children),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut text_query: Query<&mut Text>,
+    mut waypoint_list: ResMut<FieldWaypointList>,
+    mut commands: Commands
+) {
+    for (interaction, mut color, children) in interaction_query.iter_mut() {
+        let mut text = text_query.get_mut(children[0]).unwrap();
+        match *interaction {
+            Interaction::Clicked => {
+                *color = PRESSED_BUTTON.into();
+
+                let l = waypoint_list.0.last_mut().unwrap();
+
+                *l = match l {
+                    None => { None }
+                    Some(w) => {
+                        match w {
+                            Waypoint::Translation(t) => { Some(Waypoint::Translation(*t)) }
+                            Waypoint::Pose(p) => { Some(Waypoint::Translation(p.translation)) }
+                        }
+                    }
+                };
+
+                spawn_waypoint(
+                    Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
+                    &mut waypoint_list,
+                    &mut commands
+                )
+            }
+            Interaction::Hovered => {
+                *color = HOVERED_BUTTON.into();
+            }
+            Interaction::None => {
+                *color = NORMAL_BUTTON.into();
+            }
+        }
+    }
 }

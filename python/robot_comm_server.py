@@ -22,11 +22,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
             d = json.loads(data)
 
-            print(d)
+            # print(d)
 
             t: Trajectory = parse_obj_as(Trajectory, d)
 
-            print(t)
+            # print(t)
 
             try:
                 trajectory = gen_trajectory(t.start, t.points, t.end)
