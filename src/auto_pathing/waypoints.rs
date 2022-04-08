@@ -170,6 +170,43 @@ pub fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands
     list.0[routine_number].push(Some(waypoint))
 }
 
+pub fn path_continuity_updater(mut waypoints: ResMut<FieldWaypointList>) {
+    let idx = waypoints.1;
+    if idx > 0 {
+        let correct_translation = match waypoints.0[idx].first().unwrap().unwrap() {
+            Waypoint::Translation(t) => { t }
+            Waypoint::Pose(p) => { p.translation }
+        };
+
+        let other_path = &mut waypoints.0[idx - 1];
+        let i = other_path.len() - 1;
+
+        other_path[i] = match other_path.last().unwrap().unwrap() {
+            Waypoint::Translation(_) => { Some(Waypoint::Translation(correct_translation)) }
+            Waypoint::Pose(p) => { Some(Waypoint::Pose(FieldPose::new(
+                correct_translation,
+                p.rotation
+            ))) }
+        }
+    }
+    if idx < waypoints.0.len() - 1 {
+        let correct_translation = match waypoints.0[idx].last().unwrap().unwrap() {
+            Waypoint::Translation(t) => { t }
+            Waypoint::Pose(p) => { p.translation }
+        };
+
+        let other_path = &mut waypoints.0[idx + 1];
+
+        other_path[0] = match other_path[0].unwrap() {
+            Waypoint::Translation(_) => { Some(Waypoint::Translation(correct_translation)) }
+            Waypoint::Pose(p) => { Some(Waypoint::Pose(FieldPose::new(
+                correct_translation,
+                p.rotation
+            ))) }
+        }
+    }
+}
+
 pub fn waypoint_updater(
     mut commands: Commands,
     field: Res<Field>,

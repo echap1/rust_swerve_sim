@@ -237,9 +237,13 @@ pub fn button_system(
                     }
                     ConfigButtonAction::AddPath => {
                         let path_idx = waypoint_list.0.len();
+                        let start_pos = match waypoint_list.0.last().unwrap().last().unwrap().unwrap() {
+                            Waypoint::Translation(t) => { t }
+                            Waypoint::Pose(p) => { p.translation }
+                        };
                         waypoint_list.0.push(vec![]);
                         spawn_waypoint(
-                            Waypoint::Pose(FieldPose::new(FieldPosition::new(Length::new::<meter>(1.0), Length::new::<meter>(1.0)), Angle::ZERO)),
+                            Waypoint::Pose(FieldPose::new(start_pos, Angle::ZERO)),
                             &mut waypoint_list,
                             &mut commands,
                             path_idx
