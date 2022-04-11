@@ -25,8 +25,15 @@ class TrajectoryEndpoint:
 class SimTrajectory:
     @staticmethod
     def generate_trajectory(start: TrajectoryEndpoint, waypoints: list[Translation2d], end: TrajectoryEndpoint,
-                            max_vel: Unum, max_accel: Unum) -> Trajectory:
+                            max_vel: Unum, max_accel: Unum) -> Trajectory | None:
         config = TrajectoryConfig(max_vel.asNumber(m/s), max_accel.asNumber(m/(s*s)))
         config.setStartVelocity(start.vel.asNumber(m/s))
         config.setEndVelocity(end.vel.asNumber(m/s))
-        return TrajectoryGenerator.generateTrajectory(start.as_pose(), waypoints, end.as_pose(), config)
+        try:
+            t = TrajectoryGenerator.generateTrajectory(start.as_pose(), waypoints, end.as_pose(), config)
+            if t.totalTime() == 0:
+                return None
+            return t
+        except:
+            return None
+

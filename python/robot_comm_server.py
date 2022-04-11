@@ -28,9 +28,9 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
 
             # print(t)
 
-            try:
-                trajectory = gen_trajectory(t.start, t.points, t.end)
-            except:
+            trajectory = gen_trajectory(t.start, t.points, t.end)
+
+            if trajectory is None:
                 trajectory = []
 
             conn.sendall(

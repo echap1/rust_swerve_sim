@@ -184,13 +184,8 @@ pub fn button_system(
                         let path_idx = waypoint_list.1;
                         let l = waypoint_list.0[path_idx].last_mut().unwrap();
                         *l = match l {
-                            None => { None }
-                            Some(w) => {
-                                match w {
-                                    Waypoint::Translation(t) => { Some(Waypoint::Translation(*t)) }
-                                    Waypoint::Pose(p) => { Some(Waypoint::Translation(p.translation)) }
-                                }
-                            }
+                            Waypoint::Translation(t) => { Waypoint::Translation(*t) }
+                            Waypoint::Pose(p) => { Waypoint::Translation(p.translation) }
                         };
 
                         spawn_waypoint(
@@ -202,22 +197,22 @@ pub fn button_system(
                     }
                     ConfigButtonAction::RemoveWaypoint => {
                         let path_idx = waypoint_list.1;
+
+                        if waypoint_list.0[path_idx].len() <= 2 {
+                            return;
+                        }
+
                         waypoint_list.0[path_idx].pop();
 
                         let l = waypoint_list.0[path_idx].last_mut().unwrap();
                         *l = match l {
-                            None => { None }
-                            Some(w) => {
-                                match w {
-                                    Waypoint::Translation(t) => {
-                                        Some(Waypoint::Pose(
-                                            FieldPose::new(*t, Angle::ZERO)
-                                        ))
-                                    }
-                                    Waypoint::Pose(p) => {
-                                        Some(Waypoint::Pose(*p))
-                                    }
-                                }
+                            Waypoint::Translation(t) => {
+                                Waypoint::Pose(
+                                    FieldPose::new(*t, Angle::ZERO)
+                                )
+                            }
+                            Waypoint::Pose(p) => {
+                                Waypoint::Pose(*p)
                             }
                         };
                     }
@@ -237,8 +232,8 @@ pub fn button_system(
                     }
                     ConfigButtonAction::AddPath => {
                         let path_idx = waypoint_list.0.len();
-                        let start_pos = match waypoint_list.0.last().unwrap().last().unwrap().unwrap() {
-                            Waypoint::Translation(t) => { t }
+                        let start_pos = match waypoint_list.0.last().unwrap().last().unwrap() {
+                            Waypoint::Translation(t) => { *t }
                             Waypoint::Pose(p) => { p.translation }
                         };
                         waypoint_list.0.push(vec![]);

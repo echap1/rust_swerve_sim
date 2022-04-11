@@ -30,7 +30,7 @@ pub struct FieldWaypointID {
 }
 
 #[derive(Default)]
-pub struct FieldWaypointList(pub Vec<Vec<Option<Waypoint>>>, pub usize);
+pub struct FieldWaypointList(pub Vec<Vec<Waypoint>>, pub usize);
 
 #[derive(Component)]
 pub struct FieldWaypoint(FieldWaypointID);
@@ -167,42 +167,42 @@ pub fn spawn_waypoint(waypoint: Waypoint, list: &mut FieldWaypointList, commands
         idx: list.0[routine_number].len()
     }));
 
-    list.0[routine_number].push(Some(waypoint))
+    list.0[routine_number].push(waypoint)
 }
 
 pub fn path_continuity_updater(mut waypoints: ResMut<FieldWaypointList>) {
     let idx = waypoints.1;
     if idx > 0 {
-        let correct_translation = match waypoints.0[idx].first().unwrap().unwrap() {
-            Waypoint::Translation(t) => { t }
+        let correct_translation = match waypoints.0[idx].first().unwrap() {
+            Waypoint::Translation(t) => { *t }
             Waypoint::Pose(p) => { p.translation }
         };
 
         let other_path = &mut waypoints.0[idx - 1];
         let i = other_path.len() - 1;
 
-        other_path[i] = match other_path.last().unwrap().unwrap() {
-            Waypoint::Translation(_) => { Some(Waypoint::Translation(correct_translation)) }
-            Waypoint::Pose(p) => { Some(Waypoint::Pose(FieldPose::new(
+        other_path[i] = match other_path.last().unwrap() {
+            Waypoint::Translation(_) => { Waypoint::Translation(correct_translation) }
+            Waypoint::Pose(p) => { Waypoint::Pose(FieldPose::new(
                 correct_translation,
                 p.rotation
-            ))) }
+            )) }
         }
     }
     if idx < waypoints.0.len() - 1 {
-        let correct_translation = match waypoints.0[idx].last().unwrap().unwrap() {
-            Waypoint::Translation(t) => { t }
+        let correct_translation = match waypoints.0[idx].last().unwrap() {
+            Waypoint::Translation(t) => { *t }
             Waypoint::Pose(p) => { p.translation }
         };
 
         let other_path = &mut waypoints.0[idx + 1];
 
-        other_path[0] = match other_path[0].unwrap() {
-            Waypoint::Translation(_) => { Some(Waypoint::Translation(correct_translation)) }
-            Waypoint::Pose(p) => { Some(Waypoint::Pose(FieldPose::new(
+        other_path[0] = match other_path[0] {
+            Waypoint::Translation(_) => { Waypoint::Translation(correct_translation) }
+            Waypoint::Pose(p) => { Waypoint::Pose(FieldPose::new(
                 correct_translation,
                 p.rotation
-            ))) }
+            )) }
         }
     }
 }
@@ -234,27 +234,18 @@ pub fn waypoint_updater(
             continue;
         }
 
-        match waypoints.0[field_waypoint.0.path_id][field_waypoint.0.idx] {
-            None => {
-                *visibility = Visibility {
-                    is_visible: false
-                }
-            }
-            Some(w) => {
-                let pose = match w {
-                    Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
-                    Waypoint::Pose(p) => { p }
-                };
-                *transform = field.to_screen_transform(
-                    &layout,
-                    &pose,
-                    FieldZ::AUTO_WAYPOINTS.0,
-                );
-                *visibility = Visibility {
-                    is_visible: true
-                }
-            }
-        }
+        let pose = match waypoints.0[field_waypoint.0.path_id][field_waypoint.0.idx] {
+            Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
+            Waypoint::Pose(p) => { p }
+        };
+        *transform = field.to_screen_transform(
+            &layout,
+            &pose,
+            FieldZ::AUTO_WAYPOINTS.0,
+        );
+        *visibility = Visibility {
+            is_visible: true
+        };
     }
 }
 
@@ -285,7 +276,7 @@ pub fn rotation_anchor_updater(
             continue;
         }
 
-        if let Some(Waypoint::Pose(pose)) = waypoints.0[rotation_anchor.0.path_id][rotation_anchor.0.idx] {
+        if let Waypoint::Pose(pose) = waypoints.0[rotation_anchor.0.path_id][rotation_anchor.0.idx] {
             let center_transform = field.to_screen_transform(
                 &layout,
                 &pose,
@@ -353,24 +344,22 @@ pub fn waypoint_grab_system(
         if let Some(new_cursor_pos) = cursor_state.pos {
             match cursor_state.grabbed {
                 CursorGrabOption::Position(id) => {
-                    if let Some(t) = waypoints.0[id.path_id][id.idx] {
-                        match t {
-                            Waypoint::Translation(_) => { waypoints.0[id.path_id][id.idx] = Some(Waypoint::Translation(new_cursor_pos)) }
-                            Waypoint::Pose(pose) => { waypoints.0[id.path_id][id.idx] = Some(Waypoint::Pose(FieldPose::new(new_cursor_pos, pose.rotation))) }
-                        };
-                    }
+                    match waypoints.0[id.path_id][id.idx] {
+                        Waypoint::Translation(_) => { waypoints.0[id.path_id][id.idx] = Waypoint::Translation(new_cursor_pos) }
+                        Waypoint::Pose(pose) => { waypoints.0[id.path_id][id.idx] = Waypoint::Pose(FieldPose::new(new_cursor_pos, pose.rotation)) }
+                    };
                 }
                 CursorGrabOption::Rotation(id) => {
-                    if let Some(Waypoint::Pose(pose)) = waypoints.0[id.path_id][id.idx] {
+                    if let Waypoint::Pose(pose) = waypoints.0[id.path_id][id.idx] {
                         if let Some(cursor_pos) = cursor_state.pos {
-                            waypoints.0[id.path_id][id.idx] = Some(Waypoint::Pose(FieldPose::new(
+                            waypoints.0[id.path_id][id.idx] = Waypoint::Pose(FieldPose::new(
                                 pose.translation,
                                 Angle::new::<radian>(
                                     (cursor_pos.y - pose.translation.y).get::<meter>().atan2(
                                         (cursor_pos.x - pose.translation.x).get::<meter>()
                                     )
                                 )
-                            )));
+                            ));
                         }
                     }
                 }
@@ -395,43 +384,41 @@ pub fn waypoint_grab_system(
                                         continue;
                                     }
 
-                                    if let Some(w) = w {
-                                        let field_position: &FieldPosition;
+                                    let field_position: &FieldPosition;
 
-                                        match w {
-                                            Waypoint::Pose(pose) => {
-                                                field_position = &pose.translation;
+                                    match w {
+                                        Waypoint::Pose(pose) => {
+                                            field_position = &pose.translation;
 
-                                                let theta = pose.rotation.get::<radian>();
-                                                let anchor_pos = FieldPosition::new(
-                                                    field_position.x + (
-                                                        theta.cos() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
-                                                            (field.size.x / layout.field.size.x)
-                                                    ),
-                                                    field_position.y + (
-                                                        theta.sin() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
-                                                            (field.size.y / layout.field.size.y)
-                                                    )
-                                                );
+                                            let theta = pose.rotation.get::<radian>();
+                                            let anchor_pos = FieldPosition::new(
+                                                field_position.x + (
+                                                    theta.cos() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
+                                                        (field.size.x / layout.field.size.x)
+                                                ),
+                                                field_position.y + (
+                                                    theta.sin() * ROTATION_ANCHOR_REVOLUTION_RADIUS *
+                                                        (field.size.y / layout.field.size.y)
+                                                )
+                                            );
 
-                                                let d = mouse_pos.dist(&anchor_pos);
-                                                let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
+                                            let d = mouse_pos.dist(&anchor_pos);
+                                            let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
 
-                                                if d <= ROTATION_ANCHOR_POINT_RADIUS {
-                                                    cursor_state.grabbed = CursorGrabOption::Rotation(id);
-                                                    break 'outer;
-                                                }
+                                            if d <= ROTATION_ANCHOR_POINT_RADIUS {
+                                                cursor_state.grabbed = CursorGrabOption::Rotation(id);
+                                                break 'outer;
                                             }
-                                            Waypoint::Translation(t) => { field_position = t }
                                         }
+                                        Waypoint::Translation(t) => { field_position = t }
+                                    }
 
-                                        let d = mouse_pos.dist(field_position);
-                                        let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
+                                    let d = mouse_pos.dist(field_position);
+                                    let d = layout.field.size.x * d.get::<meter>() / field.size.x.get::<meter>();
 
-                                        if d <= WAYPOINT_RADIUS {
-                                            cursor_state.grabbed = CursorGrabOption::Position(id);
-                                            break;
-                                        }
+                                    if d <= WAYPOINT_RADIUS {
+                                        cursor_state.grabbed = CursorGrabOption::Position(id);
+                                        break;
                                     }
                                 }
                             }

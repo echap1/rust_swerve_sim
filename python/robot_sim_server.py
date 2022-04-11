@@ -5,7 +5,7 @@ from python.robot_comm_models import FieldPose, FieldPosition
 from python.swerve_sim_trajectory import SimTrajectory, TrajectoryEndpoint
 
 
-def gen_trajectory(start_pose: FieldPose, waypoints: list[FieldPosition], end_pose: FieldPose) -> list[FieldPosition]:
+def gen_trajectory(start_pose: FieldPose, waypoints: list[FieldPosition], end_pose: FieldPose) -> list[FieldPosition] | None:
     trajectory = SimTrajectory.generate_trajectory(
         TrajectoryEndpoint(start_pose.translation.x * m, start_pose.translation.y * m, start_pose.rotation * rad),
         list(Translation2d(w.x, w.y) for w in waypoints),
@@ -13,6 +13,8 @@ def gen_trajectory(start_pose: FieldPose, waypoints: list[FieldPosition], end_po
         5 * m/s,
         1 * m/(s*s)
     )
+    if trajectory is None:
+        return None
     samples = 300
     step = trajectory.totalTime() / samples
     t = 0

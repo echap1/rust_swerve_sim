@@ -55,23 +55,21 @@ pub fn generate_trajectory(waypoints: &FieldWaypointList, path_id: usize) -> Tra
     let internal_waypoints = &waypoints.0[path_id][1..waypoints.0[path_id].len()-1];
 
     for w in internal_waypoints {
-        if let Some(w) = w {
-            points.push(match w {
-                Waypoint::Translation(t) => { *t }
-                Waypoint::Pose(pose) => { pose.translation }
-            })
-        }
+        points.push(match w {
+            Waypoint::Translation(t) => { *t }
+            Waypoint::Pose(pose) => { pose.translation }
+        })
     }
 
     Trajectory {
-        start: match waypoints.0[path_id].first().unwrap().unwrap() {
-            Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
-            Waypoint::Pose(p) => { p }
+        start: match waypoints.0[path_id].first().unwrap() {
+            Waypoint::Translation(t) => { FieldPose::new(*t, Angle::ZERO) }
+            Waypoint::Pose(p) => { *p }
         },
         points,
-        end: match waypoints.0[path_id].last().unwrap().unwrap() {
-            Waypoint::Translation(t) => { FieldPose::new(t, Angle::ZERO) }
-            Waypoint::Pose(p) => { p }
+        end: match waypoints.0[path_id].last().unwrap() {
+            Waypoint::Translation(t) => { FieldPose::new(*t, Angle::ZERO) }
+            Waypoint::Pose(p) => { *p }
         }
     }
 }
